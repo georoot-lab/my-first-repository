@@ -123,6 +123,12 @@
   .visits-empty { color: var(--ink-soft); font-size: 13px; }
   .count { color: var(--ink-soft); font-size: 12px; }
   .hint { color: var(--ink-soft); font-size: 12px; margin: 0; }
+  .notice { font-size: 13px; padding: 8px 10px; border-radius: 6px; background: var(--accent-soft); color: var(--ink); border: 1px solid var(--accent); }
+  .notice.warn { background: var(--field); border-color: var(--danger); }
+  .notice[hidden] { display: none; }
+  .confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--danger); background: var(--field); font-size: 13px; }
+  .confirm[hidden] { display: none; }
+  .confirm .btn.danger { border-color: var(--danger); }
   .sample-tag { display: inline-block; font-size: 11px; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 1px 8px; font-weight: 700; vertical-align: middle; }
 
   /* ---------- プレビュー ---------- */
@@ -250,6 +256,7 @@
       <div class="actions">
         <button class="btn primary" id="add-recurring" type="button">この月の該当曜日に追加</button>
       </div>
+      <p class="notice warn" id="r-notice" hidden role="alert"></p>
       <p class="hint">祝日にも追加されます。お休みの日は下の一覧から消してください。</p>
     </div>
 
@@ -264,6 +271,7 @@
         <div class="field"><label for="s-label">内容</label><input id="s-label" placeholder="リハビリ"></div>
         <div class="field" style="align-self:end"><button class="btn" id="add-single" type="button">追加</button></div>
       </div>
+      <p class="notice warn" id="s-notice" hidden role="alert"></p>
     </div>
 
     <div class="section">
@@ -271,6 +279,11 @@
       <div class="visits" id="visits"></div>
       <div class="actions">
         <button class="btn quiet danger" id="clear-month" type="button">この月をすべて消す</button>
+      </div>
+      <div class="confirm" id="clear-confirm" hidden role="alertdialog" aria-live="polite">
+        <span id="clear-confirm-text"></span>
+        <button class="btn danger" id="clear-yes" type="button">消す</button>
+        <button class="btn" id="clear-no" type="button">やめる</button>
       </div>
       <p class="hint">入力内容はこのブラウザに自動保存されます。</p>
     </div>
@@ -283,6 +296,7 @@
       <span class="spacer"></span>
       <span class="hint" id="sample-hint"></span>
     </div>
+    <p class="notice warn" id="export-notice" hidden role="alert"></p>
     <div class="sheet-frame" id="frame">
       <div class="sheet-scale" id="scale">
         <div class="sheet" id="sheet"></div>
@@ -382,7 +396,7 @@
     if (![...ymY.options].some((o) => o.value === y)) ymY.add(new Option(`${y}年`, y));
     ymY.value = y; ymM.value = m;
   }
-  function setYm(ym) { state.ym = ym; state.sample = false; save(); syncYmSelects(); render(); }
+  function setYm(ym) { state.ym = ym; state.sample = false; save(); syncYmSelects(); $('clear-confirm').hidden = true; render(); }
   function shiftYm(delta) {
     const [y, m] = state.ym.split('-').map(Number);
     const d = new Date(y, m - 1 + delta, 1);
@@ -394,9 +408,17 @@
   $('ym-next').addEventListener('click', () => shiftYm(1));
   syncYmSelects();
 
+  // ブラウザの alert / confirm は埋め込み表示だと出ないため、ページ内に表示する
+  function notify(id, msg) {
+    const el = $(id);
+    el.textContent = msg; el.hidden = !msg;
+    if (msg) { clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; }, 4000); }
+  }
+
   $('add-recurring').addEventListener('click', () => {
     const days = [...document.querySelectorAll('#weekdays input:checked')].map((i) => Number(i.value));
-    if (!days.length) { alert('曜日を1つ以上選んでください。'); return; }
+    if (!days.length) { notify('r-notice', '曜日を1つ以上選んでください。'); return; }
+    notify('r-notice', '');
     // 表示中の年月をプルダウンから直接読む（状態とのズレを防ぐ）
     state.ym = `${ymY.value}-${ymM.value}`;
     const [y, m] = state.ym.split('-').map(Number);
@@ -414,7 +436,8 @@
 
   $('add-single').addEventListener('click', () => {
     const date = $('s-date').value;
-    if (!date) { alert('日付を選んでください。'); return; }
+    if (!date) { notify('s-notice', '日付を選んでください。'); return; }
+    notify('s-notice', '');
     state.visits.push({ id: uid(), date, start: $('s-start').value, end: $('s-end').value, label: $('s-label').value.trim() });
     if (date.slice(0, 7) !== state.ym) { state.ym = date.slice(0, 7); syncYmSelects(); }
     state.sample = false; save(); render();
@@ -422,10 +445,19 @@
 
   $('clear-month').addEventListener('click', () => {
     const n = monthVisits().length;
-    if (!n) return;
-    if (!confirm(`${state.ym} の訪問 ${n} 件をすべて消します。よろしいですか？`)) return;
+    const [y, m] = state.ym.split('-').map(Number);
+    if (!n) { notify('s-notice', `${y}年${m}月の訪問はまだありません。`); return; }
+    $('clear-confirm-text').textContent = `${y}年${m}月の訪問 ${n} 件をすべて消します。よろしいですか？`;
+    $('clear-confirm').hidden = false;
+    $('clear-yes').focus();
+  });
+  $('clear-no').addEventListener('click', () => { $('clear-confirm').hidden = true; $('clear-month').focus(); });
+  $('clear-yes').addEventListener('click', () => {
     state.visits = state.visits.filter((v) => v.date.slice(0, 7) !== state.ym);
     state.sample = false; save(); render();
+    $('clear-confirm').hidden = true;
+    $('clear-month').textContent = '消しました';
+    setTimeout(() => { $('clear-month').textContent = 'この月をすべて消す'; }, 1500);
   });
 
   $('print').addEventListener('click', () => window.print());
@@ -546,7 +578,7 @@
   // ---------- 画像書き出し ----------
   $('export').addEventListener('click', async () => {
     const btn = $('export');
-    if (typeof html2canvas !== 'function') { alert('画像化の部品が読み込めませんでした。代わりに「印刷 / PDF に保存」をお使いください。'); return; }
+    if (typeof html2canvas !== 'function') { notify('export-notice', '画像化の部品が読み込めませんでした。代わりに「印刷 / PDF に保存」をお使いください。'); return; }
     btn.disabled = true; btn.textContent = '作成中…';
     const scaleEl = $('scale');
     const prev = scaleEl.style.transform;
@@ -556,7 +588,7 @@
       $('modal-img').src = canvas.toDataURL('image/png');
       $('modal').hidden = false;
     } catch (e) {
-      alert('画像を作れませんでした。代わりに「印刷 / PDF に保存」をお使いください。');
+      notify('export-notice', '画像を作れませんでした。代わりに「印刷 / PDF に保存」をお使いください。');
     } finally {
       scaleEl.style.transform = prev;
       btn.disabled = false; btn.textContent = '画像にする（Canva 用）';
