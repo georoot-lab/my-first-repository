@@ -125,6 +125,7 @@
   .hint { color: var(--ink-soft); font-size: 12px; margin: 0; }
   .notice { font-size: 13px; padding: 8px 10px; border-radius: 6px; background: var(--accent-soft); color: var(--ink); border: 1px solid var(--accent); }
   .notice.warn { background: var(--field); border-color: var(--danger); }
+  .notice.ok { background: var(--accent-soft); border-color: var(--accent); }
   .notice[hidden] { display: none; }
   .confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--danger); background: var(--field); font-size: 13px; }
   .confirm[hidden] { display: none; }
@@ -291,8 +292,9 @@
 
   <section class="preview" aria-label="プレビュー">
     <div class="preview-bar">
-      <button class="btn primary" id="print" type="button">印刷 / PDF に保存</button>
+      <button class="btn primary" id="pdf" type="button">PDF をダウンロード</button>
       <button class="btn" id="export" type="button">画像にする（Canva 用）</button>
+      <button class="btn quiet" id="print" type="button">印刷</button>
       <span class="spacer"></span>
       <span class="hint" id="sample-hint"></span>
     </div>
@@ -307,13 +309,18 @@
 
 <div class="modal" id="modal" hidden>
   <div class="modal-box">
-    <p><strong>画像ができました。</strong>画像を右クリック（スマホは長押し）して「画像を保存」してから、Canva の「アップロード」に入れてください。</p>
+    <p><strong>画像ができました。</strong>「画像をダウンロード」で保存して、Canva の「アップロード」に入れてください。右クリック（スマホは長押し）でも保存できます。</p>
     <img id="modal-img" alt="訪問予定表の画像">
-    <div class="actions"><button class="btn" id="modal-close" type="button">閉じる</button></div>
+    <div class="actions">
+      <button class="btn primary" id="modal-save" type="button">画像をダウンロード</button>
+      <button class="btn" id="modal-close" type="button">閉じる</button>
+    </div>
+    <p class="notice warn" id="modal-notice" hidden role="alert"></p>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (function () {
   'use strict';
@@ -409,8 +416,10 @@
   syncYmSelects();
 
   // ブラウザの alert / confirm は埋め込み表示だと出ないため、ページ内に表示する
-  function notify(id, msg) {
+  function notify(id, msg, kind) {
     const el = $(id);
+    el.classList.toggle('ok', kind === 'ok');
+    el.classList.toggle('warn', kind !== 'ok');
     el.textContent = msg; el.hidden = !msg;
     if (msg) { clearTimeout(el._t); el._t = setTimeout(() => { el.hidden = true; }, 4000); }
   }
@@ -575,25 +584,101 @@
   window.addEventListener('resize', fit);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
 
-  // ---------- 画像書き出し ----------
-  $('export').addEventListener('click', async () => {
-    const btn = $('export');
-    if (typeof html2canvas !== 'function') { notify('export-notice', '画像化の部品が読み込めませんでした。代わりに「印刷 / PDF に保存」をお使いください。'); return; }
-    btn.disabled = true; btn.textContent = '作成中…';
+  // ---------- 書き出し（PDF / 画像） ----------
+  // claude.ai 内では印刷ダイアログや直接ダウンロードが止められるため、
+  // 提供されていれば「ファイルを保存」機能（downloads）で手渡す。
+  let downloadsNs = null;
+  (async () => {
+    try { downloadsNs = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; }
+    catch (e) { downloadsNs = null; }
+  })();
+
+  function fileBase() {
+    const [y, m] = state.ym.split('-').map(Number);
+    const name = (state.client || '').replace(/\s+/g, '');
+    return `訪問予定表_${y}年${m}月${name ? `_${name}様` : ''}`;
+  }
+
+  async function renderSheetCanvas(scale) {
+    if (typeof html2canvas !== 'function') throw new Error('html2canvas');
     const scaleEl = $('scale');
     const prev = scaleEl.style.transform;
     scaleEl.style.transform = 'none';
     try {
-      const canvas = await html2canvas($('sheet'), { scale: 2, backgroundColor: '#ffffff', useCORS: true });
-      $('modal-img').src = canvas.toDataURL('image/png');
-      $('modal').hidden = false;
-    } catch (e) {
-      notify('export-notice', '画像を作れませんでした。代わりに「印刷 / PDF に保存」をお使いください。');
+      return await html2canvas($('sheet'), { scale, backgroundColor: '#ffffff', useCORS: true });
     } finally {
       scaleEl.style.transform = prev;
-      btn.disabled = false; btn.textContent = '画像にする（Canva 用）';
     }
-  });
+  }
+
+  // 保存の手渡し：claude.ai 内は downloads、それ以外は通常のダウンロード
+  async function deliver(filename, blob) {
+    if (downloadsNs) {
+      await downloadsNs.save({ filename, data: blob });
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  function deliverError(e) {
+    const code = e && e.code;
+    if (code === 'declined') return '保存をやめました。';
+    if (code === 'rate_limited') return '前の保存がまだ開いています。少し待ってからもう一度押してください。';
+    return '保存できませんでした。しばらくしてからもう一度お試しください。';
+  }
+
+  async function busy(btn, label, fn) {
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = label;
+    try { await fn(); } finally { btn.disabled = false; btn.textContent = orig; }
+  }
+
+  $('pdf').addEventListener('click', () => busy($('pdf'), 'PDF を作成中…', async () => {
+    notify('export-notice', '');
+    if (!window.jspdf || !window.jspdf.jsPDF) { notify('export-notice', 'PDF 作成の部品が読み込めませんでした。ページを再読み込みしてからもう一度お試しください。'); return; }
+    let blob;
+    try {
+      const canvas = await renderSheetCanvas(2.5);
+      const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+      doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 297, 210, undefined, 'FAST');
+      blob = doc.output('blob');
+    } catch (e) {
+      notify('export-notice', 'PDF を作れませんでした。代わりに「印刷」からブラウザの PDF 保存をお使いください。');
+      return;
+    }
+    try {
+      await deliver(`${fileBase()}.pdf`, blob);
+      notify('export-notice', 'PDF を保存しました。', 'ok');
+    } catch (e) {
+      notify('export-notice', deliverError(e));
+    }
+  }));
+
+  $('export').addEventListener('click', () => busy($('export'), '作成中…', async () => {
+    notify('export-notice', '');
+    try {
+      const canvas = await renderSheetCanvas(2);
+      $('modal-img').src = canvas.toDataURL('image/png');
+      $('modal').hidden = false;
+      notify('modal-notice', '');
+    } catch (e) {
+      notify('export-notice', '画像を作れませんでした。代わりに「PDF をダウンロード」をお使いください。');
+    }
+  }));
+
+  $('modal-save').addEventListener('click', () => busy($('modal-save'), '保存中…', async () => {
+    try {
+      const blob = await (await fetch($('modal-img').src)).blob();
+      await deliver(`${fileBase()}.png`, blob);
+      notify('modal-notice', '画像を保存しました。Canva の「アップロード」に入れてください。', 'ok');
+    } catch (e) {
+      notify('modal-notice', deliverError(e));
+    }
+  }));
   $('modal-close').addEventListener('click', () => { $('modal').hidden = true; });
   $('modal').addEventListener('click', (e) => { if (e.target === $('modal')) $('modal').hidden = true; });
 
