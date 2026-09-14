@@ -89,6 +89,9 @@
   }
   .field textarea { resize: vertical; min-height: 56px; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ym-pick { display: flex; gap: 4px; }
+  .ym-pick select { flex: 1; min-width: 0; background: var(--field); border: 1px solid var(--field-line); border-radius: 6px; padding: 7px 4px; font-variant-numeric: tabular-nums; }
+  .ym-pick .ym-step { padding: 4px 9px; line-height: 1; font-size: 18px; }
   .row3 { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; }
   @media (max-width: 420px) { .row, .row3 { grid-template-columns: 1fr; } }
 
@@ -209,7 +212,15 @@
       <h2>基本情報</h2>
       <div class="field"><label for="client">利用者名</label><input id="client" placeholder="例：山田 花子"></div>
       <div class="row">
-        <div class="field"><label for="ym">年月</label><input id="ym" type="month"></div>
+        <div class="field">
+          <label for="ym-y">年月</label>
+          <div class="ym-pick">
+            <button class="btn ym-step" id="ym-prev" type="button" aria-label="前の月">‹</button>
+            <select id="ym-y" aria-label="年"></select>
+            <select id="ym-m" aria-label="月"></select>
+            <button class="btn ym-step" id="ym-next" type="button" aria-label="次の月">›</button>
+          </div>
+        </div>
         <div class="field"><label for="kind">表の名前</label><input id="kind" placeholder="訪問予定表"></div>
       </div>
       <div class="field"><label for="office">事業所名</label><input id="office" placeholder="例：訪問看護ステーションさくら"></div>
@@ -345,23 +356,49 @@
     state = raw ? JSON.parse(raw) : sampleState();
     if (!state || !Array.isArray(state.visits)) state = sampleState();
   } catch (e) { state = sampleState(); }
+  if (!/^\d{4}-\d{2}$/.test(state.ym || '')) state.ym = nextMonth();
 
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* 保存できない環境でも動作は続ける */ }
   }
 
   // ---------- フォーム ----------
-  const textFields = ['client', 'ym', 'kind', 'office', 'phone', 'staff', 'note'];
+  const textFields = ['client', 'kind', 'office', 'phone', 'staff', 'note'];
   textFields.forEach((k) => {
     const el = $(k);
     el.value = state[k] || '';
     el.addEventListener('input', () => { state[k] = el.value; state.sample = false; save(); render(); });
   });
 
+  // 年月のプルダウン（type="month" は Safari / Firefox で使えないため）
+  const ymY = $('ym-y'), ymM = $('ym-m');
+  (function buildYm() {
+    const thisYear = new Date().getFullYear();
+    for (let y = thisYear - 1; y <= thisYear + 3; y++) ymY.add(new Option(`${y}年`, String(y)));
+    for (let m = 1; m <= 12; m++) ymM.add(new Option(`${m}月`, pad(m)));
+  })();
+  function syncYmSelects() {
+    const [y, m] = state.ym.split('-');
+    if (![...ymY.options].some((o) => o.value === y)) ymY.add(new Option(`${y}年`, y));
+    ymY.value = y; ymM.value = m;
+  }
+  function setYm(ym) { state.ym = ym; state.sample = false; save(); syncYmSelects(); render(); }
+  function shiftYm(delta) {
+    const [y, m] = state.ym.split('-').map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    setYm(`${d.getFullYear()}-${pad(d.getMonth() + 1)}`);
+  }
+  ymY.addEventListener('change', () => setYm(`${ymY.value}-${ymM.value}`));
+  ymM.addEventListener('change', () => setYm(`${ymY.value}-${ymM.value}`));
+  $('ym-prev').addEventListener('click', () => shiftYm(-1));
+  $('ym-next').addEventListener('click', () => shiftYm(1));
+  syncYmSelects();
+
   $('add-recurring').addEventListener('click', () => {
     const days = [...document.querySelectorAll('#weekdays input:checked')].map((i) => Number(i.value));
-    if (!state.ym) { alert('先に年月を選んでください。'); return; }
     if (!days.length) { alert('曜日を1つ以上選んでください。'); return; }
+    // 表示中の年月をプルダウンから直接読む（状態とのズレを防ぐ）
+    state.ym = `${ymY.value}-${ymM.value}`;
     const [y, m] = state.ym.split('-').map(Number);
     const last = new Date(y, m, 0).getDate();
     const start = $('r-start').value, end = $('r-end').value, label = $('r-label').value.trim();
@@ -371,13 +408,15 @@
       }
     }
     state.sample = false; save(); render();
+    $('add-recurring').textContent = `追加しました（${monthVisits().length} 件）`;
+    setTimeout(() => { $('add-recurring').textContent = 'この月の該当曜日に追加'; }, 1500);
   });
 
   $('add-single').addEventListener('click', () => {
     const date = $('s-date').value;
     if (!date) { alert('日付を選んでください。'); return; }
     state.visits.push({ id: uid(), date, start: $('s-start').value, end: $('s-end').value, label: $('s-label').value.trim() });
-    if (date.slice(0, 7) !== state.ym) { state.ym = date.slice(0, 7); $('ym').value = state.ym; }
+    if (date.slice(0, 7) !== state.ym) { state.ym = date.slice(0, 7); syncYmSelects(); }
     state.sample = false; save(); render();
   });
 
