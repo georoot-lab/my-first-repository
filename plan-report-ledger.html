@@ -1,0 +1,894 @@
+<title>計画書・報告書 管理台帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --ground: #eef1f4;
+    --panel: #ffffff;
+    --panel-line: #d6dce3;
+    --ink: #1f2a33;
+    --ink-soft: #5b6873;
+    --accent: #1c7c74;
+    --accent-ink: #ffffff;
+    --accent-soft: #e2f1ef;
+    --field: #f7f9fa;
+    --field-line: #c9d1d8;
+    --danger: #c8322b;
+    --danger-soft: #fdf1f0;
+    --warn: #9a6400;
+    --warn-soft: #fbf3df;
+    --focus: #2b5fb3;
+    --row-alt: #f7f9fa;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #171c21;
+      --panel: #202830;
+      --panel-line: #33404a;
+      --ink: #e6ebef;
+      --ink-soft: #9aa8b3;
+      --accent: #4fb8ae;
+      --accent-ink: #0f1a19;
+      --accent-soft: #1f3d3a;
+      --field: #1a2129;
+      --field-line: #40505c;
+      --danger: #ef6b64;
+      --danger-soft: #3a2422;
+      --warn: #e2b04a;
+      --warn-soft: #3a3020;
+      --focus: #7fa6e8;
+      --row-alt: #1c232a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #171c21;
+    --panel: #202830;
+    --panel-line: #33404a;
+    --ink: #e6ebef;
+    --ink-soft: #9aa8b3;
+    --accent: #4fb8ae;
+    --accent-ink: #0f1a19;
+    --accent-soft: #1f3d3a;
+    --field: #1a2129;
+    --field-line: #40505c;
+    --danger: #ef6b64;
+    --danger-soft: #3a2422;
+    --warn: #e2b04a;
+    --warn-soft: #3a3020;
+    --focus: #7fa6e8;
+    --row-alt: #1c232a;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding-inline: 16px;
+    padding-block: 20px 40px;
+  }
+  h1, h2, h3 { margin: 0; text-wrap: balance; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  p { margin: 0; }
+
+  .wrap { max-width: 1400px; margin: 0 auto; display: grid; gap: 14px; }
+  .topbar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
+  .topbar h1 { font-family: "Zen Maru Gothic", "Noto Sans JP", sans-serif; font-weight: 700; font-size: 22px; letter-spacing: .02em; }
+  .topbar p { color: var(--ink-soft); }
+
+  .panel { background: var(--panel); border: 1px solid var(--panel-line); border-radius: 10px; padding: 16px 18px; }
+  .statusbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); flex: none; }
+  .dot.on { background: var(--accent); }
+  .dot.local { background: var(--warn); }
+  .spacer { flex: 1; }
+  .me { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); }
+  .me input { width: 9em; }
+
+  .btn { border: 1px solid var(--field-line); background: var(--field); border-radius: 6px; padding: 7px 12px; cursor: pointer; font-weight: 500; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.quiet { background: transparent; }
+  .btn.danger { color: var(--danger); }
+  .btn.sm { padding: 3px 8px; font-size: 12px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+  input, select, textarea { background: var(--field); border: 1px solid var(--field-line); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+  textarea { resize: vertical; min-height: 56px; width: 100%; }
+  .field { display: grid; gap: 3px; }
+  .field label { font-size: 12px; font-weight: 500; color: var(--ink-soft); }
+  .field input, .field select { width: 100%; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+
+  .notice { font-size: 13px; padding: 8px 10px; border-radius: 6px; background: var(--accent-soft); border: 1px solid var(--accent); }
+  .notice.warn { background: var(--warn-soft); border-color: var(--warn); }
+  .notice.err { background: var(--danger-soft); border-color: var(--danger); }
+  .hint { color: var(--ink-soft); font-size: 12px; }
+
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--panel-line); }
+  .tabs button { border: 0; background: transparent; padding: 8px 14px; cursor: pointer; font-weight: 500; color: var(--ink-soft); border-bottom: 3px solid transparent; margin-bottom: -1px; }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+
+  .toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 16px; }
+  .ym-pick { display: flex; gap: 4px; }
+  .ym-pick select { padding: 6px 4px; min-width: 5.5em; font-variant-numeric: tabular-nums; }
+  .ym-pick .ym-step { padding: 4px 9px; line-height: 1; font-size: 18px; }
+  .check { display: flex; align-items: center; gap: 6px; padding-bottom: 7px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .tile { border: 1px solid var(--panel-line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; }
+  .tile .k { font-size: 12px; color: var(--ink-soft); }
+  .tile .v { font-family: "Zen Maru Gothic", "Noto Sans JP", sans-serif; font-weight: 700; font-size: 24px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .tile.warn { border-color: var(--warn); background: var(--warn-soft); }
+  .tile.danger { border-color: var(--danger); background: var(--danger-soft); }
+
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--panel-line); vertical-align: middle; }
+  th { font-size: 12px; color: var(--ink-soft); font-weight: 500; white-space: nowrap; }
+  tbody tr:nth-child(even) { background: var(--row-alt); }
+  td.name { font-weight: 700; white-space: nowrap; }
+  td .sub { display: block; font-size: 11px; color: var(--ink-soft); font-weight: 400; }
+  .cellact { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; border: 1px solid var(--field-line); background: var(--field); color: var(--ink-soft); }
+  .badge.ok { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+  .badge.warn { background: var(--warn-soft); border-color: var(--warn); color: var(--ink); }
+  .badge.danger { background: var(--danger-soft); border-color: var(--danger); color: var(--ink); }
+  .badge.mid { background: var(--field); border-color: var(--ink-soft); color: var(--ink); }
+  .clip { border: 0; background: transparent; cursor: pointer; padding: 2px 4px; border-radius: 4px; color: var(--accent); font-size: 14px; line-height: 1; }
+  .clip:hover { background: var(--field); }
+  .empty { color: var(--ink-soft); padding: 14px 4px; }
+
+  .split { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+  .plist { display: grid; gap: 4px; max-height: 70vh; overflow: auto; }
+  .plist button { text-align: left; border: 1px solid transparent; background: transparent; padding: 7px 10px; border-radius: 6px; cursor: pointer; display: grid; }
+  .plist button:hover { background: var(--field); }
+  .plist button.sel { background: var(--accent-soft); border-color: var(--accent); }
+  .plist button .sub { font-size: 11px; color: var(--ink-soft); }
+  .plist button.ended { opacity: .6; }
+  .newp { display: flex; gap: 6px; }
+  .newp input { flex: 1; }
+
+  .section { display: grid; gap: 10px; }
+  .section h2 { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+  .section + .section { margin-top: 20px; }
+  .docs td input, .docs td select { padding: 4px 6px; font-size: 13px; }
+  .docs td input[type="date"], .docs td input[type="month"] { width: 10.5em; }
+  .docs .file { display: flex; align-items: center; gap: 6px; max-width: 260px; }
+  .docs .file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+  .savemark { font-size: 12px; color: var(--ink-soft); min-width: 7em; }
+
+  .help { display: grid; gap: 14px; max-width: 800px; line-height: 1.8; }
+  .help h3 { font-size: 15px; margin-top: 6px; }
+  .help ol, .help ul { margin: 0; padding-left: 1.4em; }
+  .help code { background: var(--field); border: 1px solid var(--field-line); border-radius: 4px; padding: 0 5px; font-size: 12.5px; }
+  pre.tree { background: var(--field); border: 1px solid var(--field-line); border-radius: 6px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5; overflow-x: auto; margin: 0; }
+
+  @media (prefers-reduced-motion: no-preference) { .btn { transition: border-color .15s, background .15s; } }
+
+  @page { size: A4 landscape; margin: 12mm; }
+  @media print {
+    body { background: #fff; color: #000; padding: 0; }
+    .topbar p, .statusbar, .tabs, .toolbar, .btn, .clip, .hint, .notice, #tab-patients, #tab-help { display: none !important; }
+    .panel { border: 0; padding: 0; }
+    .print-title { display: block !important; font-weight: 700; font-size: 16px; margin-bottom: 8px; }
+    table { font-size: 11px; }
+    tbody tr:nth-child(even) { background: #f3f3f3; }
+    .badge { border: 1px solid #888; background: #fff; color: #000; }
+  }
+  .print-title { display: none; }
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <h1>計画書・報告書 管理台帳</h1>
+    <p>利用者ごとの訪問看護指示書・計画書・報告書の進み具合と書類ファイルを、共有フォルダでみんなで管理します。</p>
+  </div>
+
+  <div class="panel statusbar">
+    <span class="dot" id="conn-dot"></span>
+    <span id="conn-text">フォルダ未接続</span>
+    <button class="btn primary" id="pick-folder" type="button">共有フォルダを選ぶ</button>
+    <button class="btn" id="reconnect" type="button" hidden></button>
+    <button class="btn quiet" id="try-local" type="button">お試し（このブラウザだけに保存）</button>
+    <button class="btn quiet" id="reload" type="button" hidden>読み直す</button>
+    <span class="spacer"></span>
+    <label class="me">あなたの名前 <input id="me" placeholder="例：佐藤"></label>
+  </div>
+  <p class="notice warn" id="global-notice" hidden role="alert"></p>
+
+  <nav class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="dash" aria-selected="true">今月のやること</button>
+    <button type="button" role="tab" data-tab="patients" aria-selected="false">利用者</button>
+    <button type="button" role="tab" data-tab="help" aria-selected="false">使い方</button>
+  </nav>
+
+  <!-- ============ 今月のやること ============ -->
+  <section class="panel section" id="tab-dash" role="tabpanel">
+    <div class="toolbar">
+      <div class="field">
+        <label for="ym-y">対象月</label>
+        <div class="ym-pick">
+          <button class="btn ym-step" id="ym-prev" type="button" aria-label="前の月">‹</button>
+          <select id="ym-y" aria-label="年"></select>
+          <select id="ym-m" aria-label="月"></select>
+          <button class="btn ym-step" id="ym-next" type="button" aria-label="次の月">›</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-staff">担当看護師</label>
+        <select id="f-staff"><option value="">全員</option></select>
+      </div>
+      <label class="check"><input type="checkbox" id="f-open"> 未完了の利用者だけ表示</label>
+      <span class="spacer"></span>
+      <div class="actions">
+        <button class="btn" id="csv" type="button">CSV に書き出す</button>
+        <button class="btn quiet" id="print" type="button">印刷</button>
+      </div>
+    </div>
+    <div class="tiles" id="tiles"></div>
+    <p class="print-title" id="print-title"></p>
+    <div class="tablewrap">
+      <table id="dash-table">
+        <thead><tr>
+          <th>利用者</th><th>保険</th><th>担当</th><th>指示書</th><th>計画書</th><th>報告書</th><th>主治医</th><th></th>
+        </tr></thead>
+        <tbody id="dash-body"></tbody>
+      </table>
+      <p class="empty" id="dash-empty" hidden></p>
+    </div>
+    <p class="hint">ボタンを押すと今日の日付が入ります。日付を直したいときは「利用者」タブで書き換えられます。</p>
+  </section>
+
+  <!-- ============ 利用者 ============ -->
+  <section class="panel" id="tab-patients" role="tabpanel" hidden>
+    <div class="split">
+      <aside class="section">
+        <h2>利用者一覧 <span class="hint" id="pcount"></span></h2>
+        <input id="p-search" placeholder="名前で絞り込み">
+        <label class="check"><input type="checkbox" id="p-ended"> 終了した人も表示</label>
+        <div class="plist" id="plist"></div>
+        <div class="newp">
+          <input id="new-name" placeholder="新しい利用者の氏名">
+          <button class="btn primary" id="new-add" type="button">追加</button>
+        </div>
+        <p class="notice warn" id="new-notice" hidden role="alert"></p>
+      </aside>
+      <div id="detail">
+        <p class="empty">左の一覧から利用者を選ぶか、新しく追加してください。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 使い方 ============ -->
+  <section class="panel help" id="tab-help" role="tabpanel" hidden>
+    <h3>はじめに（1回だけ）</h3>
+    <ol>
+      <li>事業所のみんなが見られる共有フォルダ（NAS、ファイルサーバー、Google ドライブや OneDrive の同期フォルダ）に、台帳用のフォルダを 1 つ作ります。例：<code>訪問看護台帳</code></li>
+      <li>この HTML ファイルもそのフォルダに入れておくと、全員が同じものを開けます。</li>
+      <li>Chrome または Edge でこの HTML を開き、「共有フォルダを選ぶ」で 1 で作ったフォルダを選びます。（Safari と Firefox はフォルダ保存に対応していません）</li>
+      <li>右上の「あなたの名前」を入れておくと、誰がいつ更新したかが残ります。</li>
+    </ol>
+
+    <h3>毎日の使い方</h3>
+    <ul>
+      <li>「今月のやること」で、計画書・報告書が「未作成」「作成済」「送付済」のどこまで進んだかが利用者ごとに見えます。ボタンを押すだけで今日の日付が入ります。</li>
+      <li>指示書の期限が 30 日以内なら黄色、14 日以内や指示書なしは赤で表示されます。</li>
+      <li>「利用者」タブで、指示書の期間や書類ファイル（PDF など）を紐づけられます。📎 を押すとファイルが開きます。</li>
+      <li>他の人の変更を取り込むには「読み直す」を押します（別のタブから戻ってきたときは自動で読み直します）。</li>
+    </ul>
+
+    <h3>フォルダの中身</h3>
+    <p>台帳は普通のファイルとして保存されるので、エクスプローラーからも見られます。バックアップはフォルダごとコピーするだけです。</p>
+<pre class="tree">訪問看護台帳/
+├ plan-report-ledger.html   ← この画面
+├ 利用者/
+│  ├ 山田花子_k3d8x2/
+│  │  ├ 利用者.json         ← 基本情報と進み具合
+│  │  └ 書類/
+│  │     ├ 指示書_2026-04-01_訪問看護指示書.pdf
+│  │     ├ 計画書_2026-09.pdf
+│  │     └ 報告書_2026-09.pdf
+│  └ 鈴木一郎_p9q1zz/ …
+└ 台帳について.txt</pre>
+
+    <h3>気をつけること</h3>
+    <ul>
+      <li>同じ利用者を 2 人が同時に編集すると、後から保存した人に「読み直しました」と出ます。もう一度操作してください。</li>
+      <li>間違えて作った利用者は「終了」にするか、エクスプローラーで <code>利用者/</code> の中のフォルダごと削除してください（この画面からは消せないようにしてあります）。</li>
+      <li>「お試し」モードはこのブラウザの中だけに保存され、ファイルの紐づけはできません。動きを確かめる用です。</li>
+    </ul>
+  </section>
+</div>
+
+<input type="file" id="file-input" hidden>
+
+<script>
+(function () {
+  'use strict';
+
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d || 1); };
+  const today = () => fmt(new Date());
+  const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return fmt(d); };
+  const addMonths = (s, n) => { const d = parse(s); const day = d.getDate(); d.setMonth(d.getMonth() + n); if (d.getDate() !== day) d.setDate(0); return fmt(d); };
+  const diffDays = (a, b) => Math.round((parse(a) - parse(b)) / 86400000);
+  const monthStart = ym => `${ym}-01`;
+  const monthEnd = ym => { const [y, m] = ym.split('-').map(Number); return fmt(new Date(y, m, 0)); };
+  const nextMonth = ym => { const [y, m] = ym.split('-').map(Number); return fmt(new Date(y, m, 1)).slice(0, 7); };
+  const jpDate = s => s ? `${+s.slice(5, 7)}/${+s.slice(8, 10)}` : '';
+  const jpYm = ym => `${ym.slice(0, 4)}年${+ym.slice(5, 7)}月`;
+  const uid = () => Math.random().toString(36).slice(2, 8);
+  const sanitize = s => String(s).replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '').slice(0, 30) || '名前なし';
+
+  const ORDER_KINDS = ['訪問看護指示書', '特別訪問看護指示書', '精神科訪問看護指示書', '精神科特別訪問看護指示書'];
+  const INSURANCES = ['介護', '医療'];
+  const PLAN_STAGES = ['未作成', '作成済', '説明済', '送付済'];
+  const PLAN_ACTIONS = ['作成した', '説明・同意した', '主治医へ送付した'];
+  const PLAN_KEYS = ['created', 'consented', 'sent'];
+  const REPORT_STAGES = ['未作成', '作成済', '送付済'];
+  const REPORT_ACTIONS = ['作成した', '主治医へ送付した'];
+  const REPORT_KEYS = ['created', 'sent'];
+
+  // ---------- 状態 ----------
+  let store = null;          // { mode: 'folder' | 'local', dir?, users? }
+  let patients = [];
+  let selectedId = null;
+  let ym = today().slice(0, 7);
+  let tab = 'dash';
+  const saveTimers = new Map();
+  const dirty = new Set();
+
+  const meInput = $('#me');
+  meInput.value = localStorage.getItem('ledger.me') || '';
+  meInput.addEventListener('input', () => localStorage.setItem('ledger.me', meInput.value.trim()));
+  const me = () => meInput.value.trim() || '(名前未設定)';
+
+  function notice(msg, level = 'warn') {
+    const el = $('#global-notice');
+    if (!msg) { el.hidden = true; return; }
+    el.textContent = msg; el.className = `notice ${level}`; el.hidden = false;
+  }
+
+  // ---------- IndexedDB（フォルダの記憶） ----------
+  function idb() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('ledger-handles', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  }
+  async function idbGet(k) { try { const db = await idb(); return await new Promise((res, rej) => { const t = db.transaction('kv').objectStore('kv').get(k); t.onsuccess = () => res(t.result); t.onerror = () => rej(t.error); }); } catch { return undefined; } }
+  async function idbSet(k, v) { try { const db = await idb(); await new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite').objectStore('kv').put(v, k); t.onsuccess = res; t.onerror = () => rej(t.error); }); } catch { /* 記憶できなくても動く */ } }
+
+  // ---------- 保存先 ----------
+  const supportsFolder = 'showDirectoryPicker' in window;
+  if (!supportsFolder) {
+    $('#pick-folder').disabled = true;
+    notice('このブラウザはフォルダ保存に対応していません。Chrome か Edge で開いてください。「お試し」は使えます。');
+  }
+
+  async function connectFolder() {
+    try {
+      const dir = await window.showDirectoryPicker({ mode: 'readwrite', id: 'ledger' });
+      await useDir(dir);
+      await idbSet('dir', dir);
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+      notice('フォルダを開けませんでした：' + (e && e.message ? e.message : e), 'err');
+    }
+  }
+
+  async function useDir(dir) {
+    const users = await dir.getDirectoryHandle('利用者', { create: true });
+    store = { mode: 'folder', dir, users };
+    try {
+      await dir.getFileHandle('台帳について.txt');
+    } catch {
+      const fh = await dir.getFileHandle('台帳について.txt', { create: true });
+      const w = await fh.createWritable();
+      await w.write('このフォルダは「計画書・報告書 管理台帳」の保存先です。\n「利用者」フォルダの中に、利用者ごとのフォルダ（基本情報の 利用者.json と 書類 フォルダ）が入ります。\nバックアップはこのフォルダごとコピーしてください。\n');
+      await w.close();
+    }
+    $('#reconnect').hidden = true;
+    await loadAll();
+    notice('');
+  }
+
+  async function tryReconnect() {
+    if (!supportsFolder) return;
+    const dir = await idbGet('dir');
+    if (!dir) return;
+    try {
+      const p = await dir.queryPermission({ mode: 'readwrite' });
+      if (p === 'granted') { await useDir(dir); return; }
+    } catch { /* 下のボタンで再接続 */ }
+    const b = $('#reconnect');
+    b.textContent = `前回のフォルダ「${dir.name}」に再接続`;
+    b.hidden = false;
+    b.onclick = async () => {
+      try {
+        const p = await dir.requestPermission({ mode: 'readwrite' });
+        if (p === 'granted') await useDir(dir);
+      } catch (e) { notice('再接続できませんでした。「共有フォルダを選ぶ」から選び直してください。', 'err'); }
+    };
+  }
+
+  function useLocal() {
+    store = { mode: 'local' };
+    try { patients = JSON.parse(localStorage.getItem('ledger.local') || '[]'); } catch { patients = []; }
+    patients.forEach(normalize);
+    $('#reconnect').hidden = true;
+    notice('お試しモードです。このブラウザの中だけに保存され、書類ファイルの紐づけはできません。');
+    renderAll();
+  }
+
+  function normalize(p) {
+    p.orders ||= []; p.plans ||= []; p.reports ||= [];
+    p.status ||= 'active';
+    p._loadedAt = p.updatedAt || '';
+  }
+
+  async function loadAll() {
+    if (!store) return;
+    if (store.mode === 'local') { useLocal(); return; }
+    const list = []; const broken = [];
+    for await (const [name, handle] of store.users.entries()) {
+      if (handle.kind !== 'directory') continue;
+      try {
+        const fh = await handle.getFileHandle('利用者.json');
+        const p = JSON.parse(await (await fh.getFile()).text());
+        p.folder = name;
+        normalize(p);
+        list.push(p);
+      } catch { broken.push(name); }
+    }
+    patients = list;
+    if (broken.length) notice('読めなかったフォルダがあります：' + broken.join('、'));
+    renderAll();
+  }
+
+  function serialize(p) { return JSON.stringify(p, (k, v) => (k.startsWith('_') ? undefined : v), 2); }
+
+  function queueSave(p, immediate = false) {
+    dirty.add(p.id);
+    clearTimeout(saveTimers.get(p.id));
+    const run = () => { saveTimers.delete(p.id); savePatient(p); };
+    if (immediate) run(); else saveTimers.set(p.id, setTimeout(run, 600));
+    markSaving(p.id, '保存中…');
+  }
+
+  async function savePatient(p) {
+    if (!store) return;
+    p.updatedAt = new Date().toISOString();
+    p.updatedBy = me();
+    if (store.mode === 'local') {
+      localStorage.setItem('ledger.local', JSON.stringify(patients.map(x => JSON.parse(serialize(x)))));
+      p._loadedAt = p.updatedAt; dirty.delete(p.id); markSaving(p.id, '保存しました'); return;
+    }
+    try {
+      const dir = await store.users.getDirectoryHandle(p.folder, { create: true });
+      let existing = null;
+      try { existing = JSON.parse(await (await (await dir.getFileHandle('利用者.json')).getFile()).text()); } catch { /* 新規 */ }
+      if (existing && existing.updatedAt && existing.updatedAt !== p._loadedAt) {
+        existing.folder = p.folder; normalize(existing);
+        const i = patients.findIndex(x => x.id === p.id);
+        if (i >= 0) patients[i] = existing;
+        dirty.delete(p.id);
+        notice(`${existing.name} さんは ${existing.updatedBy || '別の人'} が先に更新していたので、読み直しました。もう一度操作してください。`, 'err');
+        renderAll();
+        return;
+      }
+      const fh = await dir.getFileHandle('利用者.json', { create: true });
+      const w = await fh.createWritable();
+      await w.write(serialize(p));
+      await w.close();
+      p._loadedAt = p.updatedAt; dirty.delete(p.id);
+      markSaving(p.id, '保存しました');
+    } catch (e) {
+      notice('保存できませんでした：' + (e && e.message ? e.message : e), 'err');
+      markSaving(p.id, '保存できません');
+    }
+  }
+
+  function markSaving(id, text) {
+    if (id !== selectedId) return;
+    const el = $('#savemark'); if (el) el.textContent = text;
+  }
+
+  async function attachFile(p, rec, prefix, tag) {
+    if (!store || store.mode !== 'folder') { notice('書類ファイルの紐づけは共有フォルダに接続しているときだけ使えます。'); return; }
+    const input = $('#file-input');
+    input.value = '';
+    input.onchange = async () => {
+      const f = input.files[0]; if (!f) return;
+      try {
+        const dir = await store.users.getDirectoryHandle(p.folder, { create: true });
+        const docs = await dir.getDirectoryHandle('書類', { create: true });
+        const stored = sanitize(`${prefix}_${tag || ''}_`) + f.name.replace(/[\\/:*?"<>|]/g, '');
+        const fh = await docs.getFileHandle(stored, { create: true });
+        const w = await fh.createWritable(); await w.write(f); await w.close();
+        rec.file = stored;
+        queueSave(p, true);
+        renderDocs(p);
+      } catch (e) { notice('ファイルを保存できませんでした：' + (e && e.message ? e.message : e), 'err'); }
+    };
+    input.click();
+  }
+
+  async function openFile(p, rec) {
+    if (!store || store.mode !== 'folder') return;
+    const win = window.open('about:blank', '_blank');
+    try {
+      const dir = await store.users.getDirectoryHandle(p.folder);
+      const docs = await dir.getDirectoryHandle('書類');
+      const file = await (await docs.getFileHandle(rec.file)).getFile();
+      const url = URL.createObjectURL(file);
+      if (win) win.location = url; else window.open(url, '_blank');
+    } catch (e) {
+      if (win) win.close();
+      notice(`ファイル「${rec.file}」が見つかりません。移動または削除されたかもしれません。`, 'err');
+    }
+  }
+
+  // ---------- 進み具合の計算 ----------
+  function activeIn(p, ym) {
+    const s = monthStart(ym), e = monthEnd(ym);
+    if (p.startDate && p.startDate > e) return false;
+    if (p.status === 'ended') return !!p.endDate && p.endDate >= s;
+    if (p.endDate && p.endDate < s) return false;
+    return true;
+  }
+  function orderStatus(p, ym) {
+    const s = monthStart(ym), e = monthEnd(ym), t = today();
+    const covering = p.orders.filter(o => o.start && o.end && o.start <= e && o.end >= s);
+    if (!covering.length) return { level: 'danger', text: '指示書なし' };
+    const end = covering.map(o => o.end).sort().pop();
+    const left = diffDays(end, t);
+    let level = 'ok', text = `${jpDate(end)}まで`;
+    if (end < e) text = `${jpDate(end)}で切れる`;
+    if (left < 0) level = end < e ? 'danger' : 'ok';
+    else if (left <= 14) { level = 'danger'; text = `残り${left}日（${jpDate(end)}）`; }
+    else if (left <= 30) { level = 'warn'; text = `残り${left}日（${jpDate(end)}）`; }
+    else if (end < e) level = 'warn';
+    return { level, text, end };
+  }
+  function stageOf(rec, keys) {
+    if (!rec) return 0;
+    let s = 0;
+    keys.forEach((k, i) => { if (rec[k]) s = i + 1; });
+    return s;
+  }
+  function planOf(p, ym) { return p.plans.find(r => r.month === ym); }
+  function reportOf(p, ym) { return p.reports.find(r => r.month === ym); }
+
+  function advance(p, kind, ym) {
+    const list = kind === 'plan' ? p.plans : p.reports;
+    const keys = kind === 'plan' ? PLAN_KEYS : REPORT_KEYS;
+    let rec = list.find(r => r.month === ym);
+    if (!rec) { rec = { id: uid(), month: ym, file: '' }; list.push(rec); }
+    const s = stageOf(rec, keys);
+    if (s < keys.length) rec[keys[s]] = today();
+    queueSave(p, true);
+  }
+
+  // ---------- 描画 ----------
+  function renderAll() { renderStatus(); renderDash(); renderPatients(); }
+
+  function renderStatus() {
+    const dot = $('#conn-dot'), text = $('#conn-text');
+    if (!store) { dot.className = 'dot'; text.textContent = 'フォルダ未接続'; $('#reload').hidden = true; return; }
+    if (store.mode === 'local') { dot.className = 'dot local'; text.textContent = 'お試しモード（このブラウザだけ）'; $('#reload').hidden = true; return; }
+    dot.className = 'dot on'; text.textContent = `接続中：${store.dir.name}`; $('#reload').hidden = false;
+  }
+
+  function badge(level, text) { return `<span class="badge ${level}">${esc(text)}</span>`; }
+  function clip(pid, kind, rid) { return `<button class="clip" type="button" data-act="open" data-pid="${pid}" data-kind="${kind}" data-rid="${rid}" title="書類を開く">📎</button>`; }
+
+  function renderDash() {
+    const staffSel = $('#f-staff');
+    const prev = staffSel.value;
+    const staffs = [...new Set(patients.map(p => p.nurse).filter(Boolean))].sort();
+    staffSel.innerHTML = '<option value="">全員</option>' + staffs.map(s => `<option${s === prev ? ' selected' : ''}>${esc(s)}</option>`).join('');
+    const staff = staffSel.value, onlyOpen = $('#f-open').checked;
+    $('#print-title').textContent = `${jpYm(ym)} 計画書・報告書の進み具合（${today()} 時点）`;
+
+    const rows = []; const c = { pNone: 0, pMid: 0, rNone: 0, rMid: 0, order: 0, total: 0 };
+    patients
+      .filter(p => activeIn(p, ym) && (!staff || p.nurse === staff))
+      .sort((a, b) => (a.kana || a.name).localeCompare(b.kana || b.name, 'ja'))
+      .forEach(p => {
+        const o = orderStatus(p, ym);
+        const plan = planOf(p, ym), rep = reportOf(p, ym);
+        const ps = stageOf(plan, PLAN_KEYS), rs = stageOf(rep, REPORT_KEYS);
+        c.total++;
+        if (ps === 0) c.pNone++; else if (ps < 3) c.pMid++;
+        if (rs === 0) c.rNone++; else if (rs < 2) c.rMid++;
+        if (o.level !== 'ok') c.order++;
+        const done = ps === 3 && rs === 2 && o.level === 'ok';
+        if (onlyOpen && done) return;
+        const stageBadge = (s, max) => badge(s === 0 ? 'danger' : s === max ? 'ok' : 'mid', '');
+        rows.push(`<tr>
+          <td class="name">${esc(p.name)}${p.kana ? `<span class="sub">${esc(p.kana)}</span>` : ''}</td>
+          <td>${esc(p.insurance || '')}</td>
+          <td>${esc(p.nurse || '')}</td>
+          <td>${badge(o.level, o.text)}</td>
+          <td><div class="cellact">${badge(ps === 0 ? 'danger' : ps === 3 ? 'ok' : 'mid', PLAN_STAGES[ps])}
+            ${ps < 3 ? `<button class="btn sm" type="button" data-act="adv" data-kind="plan" data-pid="${p.id}">${PLAN_ACTIONS[ps]}</button>` : ''}
+            ${plan && plan.file ? clip(p.id, 'plans', plan.id) : ''}</div></td>
+          <td><div class="cellact">${badge(rs === 0 ? 'danger' : rs === 2 ? 'ok' : 'mid', REPORT_STAGES[rs])}
+            ${rs < 2 ? `<button class="btn sm" type="button" data-act="adv" data-kind="report" data-pid="${p.id}">${REPORT_ACTIONS[rs]}</button>` : ''}
+            ${rep && rep.file ? clip(p.id, 'reports', rep.id) : ''}</div></td>
+          <td>${esc(p.doctor || '')}${p.hospital ? `<span class="sub">${esc(p.hospital)}</span>` : ''}</td>
+          <td><button class="btn sm quiet" type="button" data-act="detail" data-pid="${p.id}">詳細</button></td>
+        </tr>`);
+      });
+    $('#dash-body').innerHTML = rows.join('');
+    const empty = $('#dash-empty');
+    if (!patients.length) { empty.textContent = store ? 'まだ利用者が登録されていません。「利用者」タブから追加してください。' : 'まず「共有フォルダを選ぶ」で保存先を選んでください。'; empty.hidden = false; }
+    else if (!rows.length) { empty.textContent = onlyOpen ? 'この月の未完了はありません。' : 'この月に該当する利用者がいません。'; empty.hidden = false; }
+    else empty.hidden = true;
+
+    $('#tiles').innerHTML = [
+      ['対象の利用者', c.total, ''],
+      ['計画書 未作成', c.pNone, c.pNone ? 'danger' : ''],
+      ['計画書 未送付', c.pMid, c.pMid ? 'warn' : ''],
+      ['報告書 未作成', c.rNone, c.rNone ? 'danger' : ''],
+      ['報告書 未送付', c.rMid, c.rMid ? 'warn' : ''],
+      ['指示書 要確認', c.order, c.order ? 'danger' : ''],
+    ].map(([k, v, cls]) => `<div class="tile ${cls}"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+  }
+
+  function renderPatients() {
+    const q = $('#p-search').value.trim(), showEnded = $('#p-ended').checked;
+    const list = patients
+      .filter(p => showEnded || p.status !== 'ended')
+      .filter(p => !q || (p.name + (p.kana || '')).includes(q))
+      .sort((a, b) => (a.kana || a.name).localeCompare(b.kana || b.name, 'ja'));
+    $('#pcount').textContent = `${list.length}人`;
+    $('#plist').innerHTML = list.map(p => `<button type="button" class="${p.id === selectedId ? 'sel' : ''} ${p.status === 'ended' ? 'ended' : ''}" data-pid="${p.id}">
+      <span>${esc(p.name)}${p.status === 'ended' ? '（終了）' : ''}</span>
+      <span class="sub">${esc(p.insurance || '')}${p.nurse ? ' ・ 担当 ' + esc(p.nurse) : ''}</span></button>`).join('')
+      || '<p class="empty">該当する利用者がいません。</p>';
+    const p = patients.find(x => x.id === selectedId);
+    if (!p) { $('#detail').innerHTML = '<p class="empty">左の一覧から利用者を選ぶか、新しく追加してください。</p>'; return; }
+    renderDetail(p);
+  }
+
+  function opt(list, cur) { return list.map(v => `<option${v === cur ? ' selected' : ''}>${esc(v)}</option>`).join(''); }
+
+  function renderDetail(p) {
+    $('#detail').innerHTML = `
+      <div class="section">
+        <h2>基本情報 <span class="savemark" id="savemark">${dirty.has(p.id) ? '保存中…' : ''}</span></h2>
+        <div class="grid2">
+          <div class="field"><label>氏名</label><input data-f="name" value="${esc(p.name)}"></div>
+          <div class="field"><label>ふりがな（並び順に使います）</label><input data-f="kana" value="${esc(p.kana || '')}"></div>
+          <div class="field"><label>保険</label><select data-f="insurance"><option value="">未設定</option>${opt(INSURANCES, p.insurance)}</select></div>
+          <div class="field"><label>担当看護師</label><input data-f="nurse" value="${esc(p.nurse || '')}" list="nurse-list"></div>
+          <div class="field"><label>主治医</label><input data-f="doctor" value="${esc(p.doctor || '')}"></div>
+          <div class="field"><label>医療機関</label><input data-f="hospital" value="${esc(p.hospital || '')}"></div>
+          <div class="field"><label>利用開始日</label><input data-f="startDate" type="date" value="${esc(p.startDate || '')}"></div>
+          <div class="field"><label>状態</label><select data-f="status"><option value="active"${p.status !== 'ended' ? ' selected' : ''}>利用中</option><option value="ended"${p.status === 'ended' ? ' selected' : ''}>終了</option></select></div>
+          <div class="field"><label>利用終了日</label><input data-f="endDate" type="date" value="${esc(p.endDate || '')}"></div>
+        </div>
+        <datalist id="nurse-list">${[...new Set(patients.map(x => x.nurse).filter(Boolean))].map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+        <div class="field"><label>メモ</label><textarea data-f="memo">${esc(p.memo || '')}</textarea></div>
+        <p class="hint">${p.updatedAt ? `最終更新：${p.updatedAt.slice(0, 16).replace('T', ' ')}（${esc(p.updatedBy || '')}）` : ''}${store && store.mode === 'folder' ? ` ・ フォルダ：利用者/${esc(p.folder)}` : ''}</p>
+      </div>
+      <div id="docs"></div>`;
+    renderDocs(p);
+  }
+
+  function fileCell(p, kind, rec) {
+    if (rec.file) return `<div class="file">${clip(p.id, kind, rec.id)}<span title="${esc(rec.file)}">${esc(rec.file)}</span><button class="btn sm quiet" type="button" data-act="unlink" data-kind="${kind}" data-rid="${rec.id}">外す</button></div>`;
+    return `<button class="btn sm" type="button" data-act="attach" data-kind="${kind}" data-rid="${rec.id}">ファイルを付ける</button>`;
+  }
+  const dateIn = (kind, rid, k, v) => `<input type="date" data-kind="${kind}" data-rid="${rid}" data-k="${k}" value="${esc(v || '')}">`;
+
+  function renderDocs(p) {
+    const orders = [...p.orders].sort((a, b) => (b.start || '').localeCompare(a.start || ''));
+    const plans = [...p.plans].sort((a, b) => (b.month || '').localeCompare(a.month || ''));
+    const reports = [...p.reports].sort((a, b) => (b.month || '').localeCompare(a.month || ''));
+    const del = (kind, rid) => `<button class="btn sm quiet danger" type="button" data-act="del" data-kind="${kind}" data-rid="${rid}">削除</button>`;
+    $('#docs').innerHTML = `
+      <div class="section docs">
+        <h2>訪問看護指示書</h2>
+        <div class="tablewrap"><table>
+          <thead><tr><th>種類</th><th>開始</th><th>終了</th><th>書類</th><th></th></tr></thead>
+          <tbody>${orders.map(o => `<tr>
+            <td><select data-kind="orders" data-rid="${o.id}" data-k="kind">${opt(ORDER_KINDS, o.kind)}</select></td>
+            <td>${dateIn('orders', o.id, 'start', o.start)}</td>
+            <td>${dateIn('orders', o.id, 'end', o.end)}</td>
+            <td>${fileCell(p, 'orders', o)}</td>
+            <td>${del('orders', o.id)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">指示書が登録されていません。</td></tr>'}</tbody>
+        </table></div>
+        <div class="actions"><button class="btn" type="button" data-act="add" data-kind="orders">＋ 指示書を追加</button>
+          <span class="hint">開始日を入れると終了日を自動で入れます（通常 6 か月、特別指示書は 14 日）。</span></div>
+      </div>
+      <div class="section docs">
+        <h2>訪問看護計画書</h2>
+        <div class="tablewrap"><table>
+          <thead><tr><th>対象月</th><th>作成日</th><th>説明・同意日</th><th>主治医送付日</th><th>書類</th><th></th></tr></thead>
+          <tbody>${plans.map(r => `<tr>
+            <td><input type="month" data-kind="plans" data-rid="${r.id}" data-k="month" value="${esc(r.month || '')}"></td>
+            <td>${dateIn('plans', r.id, 'created', r.created)}</td>
+            <td>${dateIn('plans', r.id, 'consented', r.consented)}</td>
+            <td>${dateIn('plans', r.id, 'sent', r.sent)}</td>
+            <td>${fileCell(p, 'plans', r)}</td>
+            <td>${del('plans', r.id)}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">計画書が登録されていません。</td></tr>'}</tbody>
+        </table></div>
+        <div class="actions"><button class="btn" type="button" data-act="add" data-kind="plans">＋ 月を追加</button></div>
+      </div>
+      <div class="section docs">
+        <h2>訪問看護報告書</h2>
+        <div class="tablewrap"><table>
+          <thead><tr><th>対象月</th><th>作成日</th><th>主治医送付日</th><th>書類</th><th></th></tr></thead>
+          <tbody>${reports.map(r => `<tr>
+            <td><input type="month" data-kind="reports" data-rid="${r.id}" data-k="month" value="${esc(r.month || '')}"></td>
+            <td>${dateIn('reports', r.id, 'created', r.created)}</td>
+            <td>${dateIn('reports', r.id, 'sent', r.sent)}</td>
+            <td>${fileCell(p, 'reports', r)}</td>
+            <td>${del('reports', r.id)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">報告書が登録されていません。</td></tr>'}</tbody>
+        </table></div>
+        <div class="actions"><button class="btn" type="button" data-act="add" data-kind="reports">＋ 月を追加</button></div>
+      </div>`;
+  }
+
+  // ---------- 操作 ----------
+  $('#pick-folder').addEventListener('click', connectFolder);
+  $('#try-local').addEventListener('click', useLocal);
+  $('#reload').addEventListener('click', () => loadAll());
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && store && store.mode === 'folder' && !dirty.size) loadAll();
+  });
+
+  $$('.tabs button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  function showTab(t) {
+    tab = t;
+    $$('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+    ['dash', 'patients', 'help'].forEach(k => { $(`#tab-${k}`).hidden = k !== t; });
+    if (t === 'dash') renderDash();
+    if (t === 'patients') renderPatients();
+  }
+
+  // 年月
+  const yEl = $('#ym-y'), mEl = $('#ym-m');
+  const thisYear = new Date().getFullYear();
+  for (let y = thisYear - 3; y <= thisYear + 2; y++) yEl.insertAdjacentHTML('beforeend', `<option value="${y}">${y}年</option>`);
+  for (let m = 1; m <= 12; m++) mEl.insertAdjacentHTML('beforeend', `<option value="${pad(m)}">${m}月</option>`);
+  function syncYm() { yEl.value = ym.slice(0, 4); mEl.value = ym.slice(5, 7); }
+  syncYm();
+  yEl.addEventListener('change', () => { ym = `${yEl.value}-${mEl.value}`; renderDash(); });
+  mEl.addEventListener('change', () => { ym = `${yEl.value}-${mEl.value}`; renderDash(); });
+  $('#ym-prev').addEventListener('click', () => { const [y, m] = ym.split('-').map(Number); ym = fmt(new Date(y, m - 2, 1)).slice(0, 7); syncYm(); renderDash(); });
+  $('#ym-next').addEventListener('click', () => { ym = nextMonth(ym); syncYm(); renderDash(); });
+  $('#f-staff').addEventListener('change', renderDash);
+  $('#f-open').addEventListener('change', renderDash);
+  $('#print').addEventListener('click', () => window.print());
+
+  $('#csv').addEventListener('click', () => {
+    const head = ['利用者', '保険', '担当', '指示書', '計画書', '計画書作成日', '説明同意日', '計画書送付日', '報告書', '報告書作成日', '報告書送付日', '主治医', '医療機関'];
+    const lines = [head];
+    patients.filter(p => activeIn(p, ym)).sort((a, b) => (a.kana || a.name).localeCompare(b.kana || b.name, 'ja')).forEach(p => {
+      const o = orderStatus(p, ym), pl = planOf(p, ym) || {}, rp = reportOf(p, ym) || {};
+      lines.push([p.name, p.insurance || '', p.nurse || '', o.text, PLAN_STAGES[stageOf(pl, PLAN_KEYS)], pl.created || '', pl.consented || '', pl.sent || '', REPORT_STAGES[stageOf(rp, REPORT_KEYS)], rp.created || '', rp.sent || '', p.doctor || '', p.hospital || '']);
+    });
+    const csv = '﻿' + lines.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `計画書報告書_${ym}.csv`;
+    a.click();
+  });
+
+  // ダッシュボードのボタン
+  $('#dash-table').addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const p = patients.find(x => x.id === b.dataset.pid); if (!p) return;
+    if (b.dataset.act === 'adv') { advance(p, b.dataset.kind, ym); renderDash(); if (selectedId === p.id) renderDocs(p); }
+    else if (b.dataset.act === 'detail') { selectedId = p.id; showTab('patients'); renderPatients(); }
+    else if (b.dataset.act === 'open') { const rec = p[b.dataset.kind].find(r => r.id === b.dataset.rid); if (rec) openFile(p, rec); }
+  });
+
+  // 利用者一覧
+  $('#p-search').addEventListener('input', renderPatients);
+  $('#p-ended').addEventListener('change', renderPatients);
+  $('#plist').addEventListener('click', e => {
+    const b = e.target.closest('button[data-pid]'); if (!b) return;
+    selectedId = b.dataset.pid; renderPatients();
+  });
+  $('#new-add').addEventListener('click', addPatient);
+  $('#new-name').addEventListener('keydown', e => { if (e.key === 'Enter') addPatient(); });
+  function addPatient() {
+    const n = $('#new-notice');
+    const name = $('#new-name').value.trim();
+    if (!store) { n.textContent = '先に「共有フォルダを選ぶ」で保存先を選んでください。'; n.hidden = false; return; }
+    if (!name) { n.textContent = '氏名を入れてください。'; n.hidden = false; return; }
+    n.hidden = true;
+    const id = uid();
+    const p = { id, folder: `${sanitize(name)}_${id}`, name, kana: '', insurance: '', nurse: '', doctor: '', hospital: '', startDate: today(), endDate: '', status: 'active', memo: '', orders: [], plans: [], reports: [] };
+    normalize(p);
+    patients.push(p);
+    selectedId = id;
+    $('#new-name').value = '';
+    queueSave(p, true);
+    renderAll();
+    const first = $('#detail input[data-f="kana"]'); if (first) first.focus();
+  }
+
+  // 利用者の詳細
+  const detail = $('#detail');
+  detail.addEventListener('input', e => {
+    const f = e.target.dataset.f; if (!f) return;
+    const p = patients.find(x => x.id === selectedId); if (!p) return;
+    p[f] = e.target.value;
+    queueSave(p);
+    if (f === 'name' || f === 'kana' || f === 'nurse' || f === 'insurance' || f === 'status') {
+      // 一覧の表示だけ更新（入力欄は作り直さない）
+      const q = $('#p-search').value.trim(), showEnded = $('#p-ended').checked;
+      const list = patients.filter(x => showEnded || x.status !== 'ended').filter(x => !q || (x.name + (x.kana || '')).includes(q)).sort((a, b) => (a.kana || a.name).localeCompare(b.kana || b.name, 'ja'));
+      $('#pcount').textContent = `${list.length}人`;
+      $('#plist').innerHTML = list.map(x => `<button type="button" class="${x.id === selectedId ? 'sel' : ''} ${x.status === 'ended' ? 'ended' : ''}" data-pid="${x.id}"><span>${esc(x.name)}${x.status === 'ended' ? '（終了）' : ''}</span><span class="sub">${esc(x.insurance || '')}${x.nurse ? ' ・ 担当 ' + esc(x.nurse) : ''}</span></button>`).join('');
+    }
+  });
+  detail.addEventListener('change', e => {
+    const el = e.target; const kind = el.dataset.kind, k = el.dataset.k; if (!kind || !k) return;
+    const p = patients.find(x => x.id === selectedId); if (!p) return;
+    const rec = p[kind].find(r => r.id === el.dataset.rid); if (!rec) return;
+    rec[k] = el.value;
+    if (kind === 'orders' && (k === 'start' || k === 'kind') && rec.start && (!rec.end || k === 'start')) {
+      rec.end = /特別/.test(rec.kind || '') ? addDays(rec.start, 13) : addDays(addMonths(rec.start, 6), -1);
+    }
+    queueSave(p);
+    renderDocs(p);
+  });
+  detail.addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const p = patients.find(x => x.id === selectedId); if (!p) return;
+    const kind = b.dataset.kind, act = b.dataset.act;
+    if (act === 'add') {
+      if (kind === 'orders') {
+        const last = [...p.orders].sort((a, b) => (a.end || '').localeCompare(b.end || '')).pop();
+        const start = last && last.end ? addDays(last.end, 1) : today();
+        p.orders.push({ id: uid(), kind: last ? last.kind : ORDER_KINDS[0], start, end: addDays(addMonths(start, 6), -1), file: '' });
+      } else {
+        let m = ym;
+        const has = mm => p[kind].some(r => r.month === mm);
+        while (has(m)) m = nextMonth(m);
+        p[kind].push({ id: uid(), month: m, file: '' });
+      }
+      queueSave(p); renderDocs(p); return;
+    }
+    const rec = p[kind].find(r => r.id === b.dataset.rid); if (!rec) return;
+    if (act === 'del') {
+      if (!b.dataset.confirm) { b.dataset.confirm = '1'; b.textContent = 'ほんとうに削除'; setTimeout(() => { delete b.dataset.confirm; b.textContent = '削除'; }, 3000); return; }
+      p[kind] = p[kind].filter(r => r.id !== rec.id);
+      queueSave(p); renderDocs(p);
+    } else if (act === 'attach') {
+      const prefix = { orders: '指示書', plans: '計画書', reports: '報告書' }[kind];
+      attachFile(p, rec, prefix, rec.month || rec.start || '');
+    } else if (act === 'open') {
+      openFile(p, rec);
+    } else if (act === 'unlink') {
+      rec.file = ''; queueSave(p); renderDocs(p);
+    }
+  });
+
+  window.addEventListener('beforeunload', e => { if (dirty.size) { e.preventDefault(); e.returnValue = ''; } });
+
+  renderAll();
+  tryReconnect();
+})();
+</script>
