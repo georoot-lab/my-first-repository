@@ -115,6 +115,9 @@
   .notice.err { background: var(--danger-soft); border-color: var(--danger); }
   .hint { color: var(--ink-soft); font-size: 12px; }
 
+  .onboard { border-color: var(--accent); background: var(--accent-soft); display: grid; gap: 6px; }
+  .onboard h2 { font-size: 16px; font-family: "Zen Maru Gothic", "Noto Sans JP", sans-serif; }
+  .onboard ol { margin: 0; padding-left: 1.4em; }
   .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--panel-line); }
   .tabs button { border: 0; background: transparent; padding: 8px 14px; cursor: pointer; font-weight: 500; color: var(--ink-soft); border-bottom: 3px solid transparent; margin-bottom: -1px; }
   .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
@@ -207,6 +210,16 @@
     <label class="me">あなたの名前 <input id="me" placeholder="例：佐藤"></label>
   </div>
   <p class="notice warn" id="global-notice" hidden role="alert"></p>
+  <div class="panel onboard" id="onboard">
+    <h2>まず保存先を選んでください</h2>
+    <p>利用者の登録や書類の紐づけは、保存先を選んでから使えます。</p>
+    <ol>
+      <li>上の緑のボタン <strong>「共有フォルダを選ぶ」</strong> を押す。</li>
+      <li>台帳を保存するフォルダ（共有フォルダの中に作ったもの）を選び、「ファイルを表示」「変更を保存」の許可を求められたら <strong>許可</strong> する。</li>
+      <li>上の表示が「接続中：フォルダ名」になれば準備完了。「利用者」タブから登録できます。</li>
+    </ol>
+    <p>動きを見るだけなら <strong>「お試し（このブラウザだけに保存）」</strong> を押すと、フォルダを選ばずにすぐ使えます。</p>
+  </div>
 
   <nav class="tabs" role="tablist">
     <button type="button" role="tab" data-tab="dash" aria-selected="true">今月のやること</button>
@@ -593,6 +606,7 @@
 
   function renderStatus() {
     const dot = $('#conn-dot'), text = $('#conn-text');
+    $('#onboard').hidden = !!store;
     if (!store) { dot.className = 'dot'; text.textContent = 'フォルダ未接続'; $('#reload').hidden = true; return; }
     if (store.mode === 'local') { dot.className = 'dot local'; text.textContent = 'お試しモード（このブラウザだけ）'; $('#reload').hidden = true; return; }
     dot.className = 'dot on'; text.textContent = `接続中：${store.dir.name}`; $('#reload').hidden = false;
@@ -818,7 +832,7 @@
   function addPatient() {
     const n = $('#new-notice');
     const name = $('#new-name').value.trim();
-    if (!store) { n.textContent = '先に「共有フォルダを選ぶ」で保存先を選んでください。'; n.hidden = false; return; }
+    if (!store) { n.textContent = '先に画面上部の緑のボタン「共有フォルダを選ぶ」で保存先を選んでください。動きを見るだけなら「お試し」でも使えます。'; n.hidden = false; window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (!name) { n.textContent = '氏名を入れてください。'; n.hidden = false; return; }
     n.hidden = true;
     const id = uid();
