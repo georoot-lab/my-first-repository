@@ -163,6 +163,13 @@
   .newp { display: flex; gap: 6px; }
   .newp input { flex: 1; }
 
+  .quick { align-items: center; flex-wrap: wrap; margin-top: 4px; }
+  .quick input { flex: 0 1 260px; }
+  .bulk { display: grid; gap: 8px; }
+  .bulk summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+  .bulk textarea { width: 100%; font-size: 13px; }
+  details.more { display: grid; gap: 10px; }
+  details.more summary { cursor: pointer; color: var(--accent); font-weight: 500; }
   .section { display: grid; gap: 10px; }
   .section h2 { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
   .section + .section { margin-top: 20px; }
@@ -262,6 +269,12 @@
       <p class="empty" id="dash-empty" hidden></p>
     </div>
     <p class="hint">ボタンを押すと今日の日付が入ります。日付を直したいときは「利用者」タブで書き換えられます。</p>
+    <div class="newp quick">
+      <input id="quick-name" placeholder="利用者を追加（氏名だけで OK）">
+      <button class="btn" id="quick-add" type="button">追加</button>
+      <span class="hint">まとめて入れるときは「利用者」タブで一覧を貼り付けられます。</span>
+    </div>
+    <p class="notice warn" id="quick-notice" hidden role="alert"></p>
   </section>
 
   <!-- ============ 利用者 ============ -->
@@ -276,6 +289,12 @@
           <input id="new-name" placeholder="新しい利用者の氏名">
           <button class="btn primary" id="new-add" type="button">追加</button>
         </div>
+        <details class="bulk">
+          <summary>まとめて追加（Excel から貼り付け）</summary>
+          <textarea id="bulk" rows="6" placeholder="山田 花子&#10;鈴木 一郎	介護	佐藤	田中医師&#10;高橋 恵子、医療、高橋"></textarea>
+          <p class="hint">1 行に 1 人。氏名だけでも、「氏名・保険・担当・主治医」の順に並んだ表をコピーして貼っても登録できます。すでに同じ氏名がいる人は飛ばします。</p>
+          <button class="btn primary" id="bulk-add" type="button">この内容で追加</button>
+        </details>
         <p class="notice warn" id="new-notice" hidden role="alert"></p>
       </aside>
       <div id="detail">
@@ -693,17 +712,22 @@
         <h2>基本情報 <span class="savemark" id="savemark">${dirty.has(p.id) ? '保存中…' : ''}</span></h2>
         <div class="grid2">
           <div class="field"><label>氏名</label><input data-f="name" value="${esc(p.name)}"></div>
-          <div class="field"><label>ふりがな（並び順に使います）</label><input data-f="kana" value="${esc(p.kana || '')}"></div>
           <div class="field"><label>保険</label><select data-f="insurance"><option value="">未設定</option>${opt(INSURANCES, p.insurance)}</select></div>
           <div class="field"><label>担当看護師</label><input data-f="nurse" value="${esc(p.nurse || '')}" list="nurse-list"></div>
           <div class="field"><label>主治医</label><input data-f="doctor" value="${esc(p.doctor || '')}"></div>
-          <div class="field"><label>医療機関</label><input data-f="hospital" value="${esc(p.hospital || '')}"></div>
-          <div class="field"><label>利用開始日</label><input data-f="startDate" type="date" value="${esc(p.startDate || '')}"></div>
-          <div class="field"><label>状態</label><select data-f="status"><option value="active"${p.status !== 'ended' ? ' selected' : ''}>利用中</option><option value="ended"${p.status === 'ended' ? ' selected' : ''}>終了</option></select></div>
-          <div class="field"><label>利用終了日</label><input data-f="endDate" type="date" value="${esc(p.endDate || '')}"></div>
         </div>
         <datalist id="nurse-list">${[...new Set(patients.map(x => x.nurse).filter(Boolean))].map(n => `<option value="${esc(n)}">`).join('')}</datalist>
-        <div class="field"><label>メモ</label><textarea data-f="memo">${esc(p.memo || '')}</textarea></div>
+        <details class="more"${(p.kana || p.hospital || p.memo || p.status === 'ended') ? ' open' : ''}>
+          <summary>くわしい情報（任意）</summary>
+          <div class="grid2">
+            <div class="field"><label>ふりがな（並び順に使います）</label><input data-f="kana" value="${esc(p.kana || '')}"></div>
+            <div class="field"><label>医療機関</label><input data-f="hospital" value="${esc(p.hospital || '')}"></div>
+            <div class="field"><label>利用開始日</label><input data-f="startDate" type="date" value="${esc(p.startDate || '')}"></div>
+            <div class="field"><label>状態</label><select data-f="status"><option value="active"${p.status !== 'ended' ? ' selected' : ''}>利用中</option><option value="ended"${p.status === 'ended' ? ' selected' : ''}>終了</option></select></div>
+            <div class="field"><label>利用終了日</label><input data-f="endDate" type="date" value="${esc(p.endDate || '')}"></div>
+          </div>
+          <div class="field"><label>メモ</label><textarea data-f="memo">${esc(p.memo || '')}</textarea></div>
+        </details>
         <p class="hint">${p.updatedAt ? `最終更新：${p.updatedAt.slice(0, 16).replace('T', ' ')}（${esc(p.updatedBy || '')}）` : ''}${store && store.mode === 'folder' ? ` ・ フォルダ：利用者/${esc(p.folder)}` : ''}</p>
       </div>
       <div id="docs"></div>`;
@@ -827,24 +851,72 @@
     const b = e.target.closest('button[data-pid]'); if (!b) return;
     selectedId = b.dataset.pid; renderPatients();
   });
+  const NO_STORE_MSG = '先に画面上部の緑のボタン「共有フォルダを選ぶ」で保存先を選んでください。動きを見るだけなら「お試し」でも使えます。';
+  function createPatient({ name, insurance = '', nurse = '', doctor = '' }) {
+    const id = uid();
+    const p = { id, folder: `${sanitize(name)}_${id}`, name, kana: '', insurance, nurse, doctor, hospital: '', startDate: today(), endDate: '', status: 'active', memo: '', orders: [], plans: [], reports: [] };
+    normalize(p);
+    patients.push(p);
+    queueSave(p, true);
+    return p;
+  }
+  function showNotice(el, msg) { el.textContent = msg; el.hidden = !msg; }
+
   $('#new-add').addEventListener('click', addPatient);
   $('#new-name').addEventListener('keydown', e => { if (e.key === 'Enter') addPatient(); });
   function addPatient() {
     const n = $('#new-notice');
     const name = $('#new-name').value.trim();
-    if (!store) { n.textContent = '先に画面上部の緑のボタン「共有フォルダを選ぶ」で保存先を選んでください。動きを見るだけなら「お試し」でも使えます。'; n.hidden = false; window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-    if (!name) { n.textContent = '氏名を入れてください。'; n.hidden = false; return; }
-    n.hidden = true;
-    const id = uid();
-    const p = { id, folder: `${sanitize(name)}_${id}`, name, kana: '', insurance: '', nurse: '', doctor: '', hospital: '', startDate: today(), endDate: '', status: 'active', memo: '', orders: [], plans: [], reports: [] };
-    normalize(p);
-    patients.push(p);
-    selectedId = id;
+    if (!store) { showNotice(n, NO_STORE_MSG); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (!name) { showNotice(n, '氏名を入れてください。'); return; }
+    showNotice(n, '');
+    selectedId = createPatient({ name }).id;
     $('#new-name').value = '';
-    queueSave(p, true);
     renderAll();
-    const first = $('#detail input[data-f="kana"]'); if (first) first.focus();
+    const first = $('#detail select[data-f="insurance"]'); if (first) first.focus();
   }
+
+  $('#quick-add').addEventListener('click', quickAdd);
+  $('#quick-name').addEventListener('keydown', e => { if (e.key === 'Enter') quickAdd(); });
+  function quickAdd() {
+    const n = $('#quick-notice');
+    const name = $('#quick-name').value.trim();
+    if (!store) { showNotice(n, NO_STORE_MSG); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (!name) { showNotice(n, '氏名を入れてください。'); return; }
+    showNotice(n, '');
+    createPatient({ name });
+    $('#quick-name').value = '';
+    renderAll();
+    $('#quick-name').focus();
+  }
+
+  // 1 行 1 人。タブ／読点／カンマ区切りで「氏名 保険 担当 主治医」
+  function parseBulk(text) {
+    return text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(line => {
+      const cells = (/\t/.test(line) ? line.split('\t') : /[、,，]/.test(line) ? line.split(/[、,，]/) : [line]).map(c => c.trim()).filter(Boolean);
+      const rec = { name: cells.shift() || '', insurance: '', nurse: '', doctor: '' };
+      const rest = [];
+      cells.forEach(c => { if (INSURANCES.includes(c) && !rec.insurance) rec.insurance = c; else rest.push(c); });
+      [rec.nurse = '', rec.doctor = ''] = rest;
+      return rec;
+    }).filter(r => r.name);
+  }
+  $('#bulk-add').addEventListener('click', () => {
+    const n = $('#new-notice');
+    if (!store) { showNotice(n, NO_STORE_MSG); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    const recs = parseBulk($('#bulk').value);
+    if (!recs.length) { showNotice(n, '登録する人がいません。1 行に 1 人ずつ入れてください。'); return; }
+    const existing = new Set(patients.map(p => p.name.replace(/\s+/g, '')));
+    let added = 0, skipped = 0;
+    recs.forEach(r => {
+      const key = r.name.replace(/\s+/g, '');
+      if (existing.has(key)) { skipped++; return; }
+      existing.add(key); createPatient(r); added++;
+    });
+    $('#bulk').value = '';
+    showNotice(n, `${added} 人を追加しました。${skipped ? `同じ氏名の ${skipped} 人は飛ばしました。` : ''}`);
+    renderAll();
+  });
 
   // 利用者の詳細
   const detail = $('#detail');
